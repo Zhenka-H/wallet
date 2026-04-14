@@ -1,0 +1,49 @@
+.container {
+  margin-left: auto;
+  margin-right: auto;
+  width: 100%;
+  max-width: 42rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  padding-top: 2.5rem;
+  padding-bottom: 2.5rem;
+}
+
+@media (min-width: 640px) {
+  .container {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+}
+
+.header {
+  margin-bottom: 2rem;
+}
+
+.title {
+  font-size: 1.5rem;
+  line-height: 2rem;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  color: #18181b;
+}
+
+:global(.dark) .title {
+  color: #fafafa;
+}
+
+.subtitle {
+  margin-top: 0.25rem;
+  font-size: 0.875rem;
+  color: #71717a;
+}
+
+:global(.dark) .subtitle {
+  color: #a1a1aa;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}

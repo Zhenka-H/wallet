@@ -1,0 +1,228 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #18181b;
+}
+
+:global(.dark) .title {
+  color: #f4f4f5;
+}
+
+.refreshBadge {
+  display: inline-flex;
+  height: 1.5rem;
+  flex-shrink: 0;
+  align-items: center;
+  border-radius: 9999px;
+  background-color: rgba(228, 228, 231, 0.8);
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #52525b;
+}
+
+:global(.dark) .refreshBadge {
+  background-color: #27272a;
+  color: #d4d4d8;
+}
+
+.errorMessage {
+  font-size: 0.875rem;
+  color: #e11d48;
+}
+
+:global(.dark) .errorMessage {
+  color: #fb7185;
+}
+
+.skeletonList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-radius: 0.75rem;
+  border-width: 1px;
+  border-color: #e4e4e7;
+  background-color: #ffffff;
+}
+
+.skeletonList > li + li {
+  border-top-width: 1px;
+  border-top-style: solid;
+  border-top-color: #f4f4f5;
+}
+
+:global(.dark) .skeletonList {
+  border-color: #27272a;
+  background-color: #09090b;
+}
+
+:global(.dark) .skeletonList > li + li {
+  border-top-color: #27272a;
+}
+
+.skeletonItem {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+}
+
+.skeletonBarLarge {
+  height: 2.5rem;
+  flex: 1 1 0%;
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  border-radius: 0.375rem;
+  background-color: #f4f4f5;
+}
+
+:global(.dark) .skeletonBarLarge {
+  background-color: #27272a;
+}
+
+.skeletonBarSmall {
+  height: 1.5rem;
+  width: 6rem;
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  border-radius: 0.375rem;
+  background-color: #f4f4f5;
+}
+
+:global(.dark) .skeletonBarSmall {
+  background-color: #27272a;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .5; }
+}
+
+.emptyState {
+  border-radius: 0.75rem;
+  border-width: 1px;
+  border-style: dashed;
+  border-color: #e4e4e7;
+  padding: 2rem 1rem;
+  text-align: center;
+  font-size: 0.875rem;
+  color: #71717a;
+}
+
+:global(.dark) .emptyState {
+  border-color: #27272a;
+  color: #a1a1aa;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border-radius: 0.75rem;
+  border-width: 1px;
+  border-color: #e4e4e7;
+  background-color: #ffffff;
+}
+
+.list > li + li {
+  border-top-width: 1px;
+  border-top-style: solid;
+  border-top-color: #f4f4f5;
+}
+
+:global(.dark) .list {
+  border-color: #27272a;
+  background-color: #09090b;
+}
+
+:global(.dark) .list > li + li {
+  border-top-color: #27272a;
+}
+
+.item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+}
+
+@media (min-width: 640px) {
+  .item {
+    flex-wrap: nowrap;
+  }
+}
+
+.itemDescription {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #18181b;
+}
+
+:global(.dark) .itemDescription {
+  color: #f4f4f5;
+}
+
+.itemMeta {
+  font-size: 0.75rem;
+  color: #71717a;
+}
+
+:global(.dark) .itemMeta {
+  color: #a1a1aa;
+}
+
+.statusBadge {
+  margin-left: 0.5rem;
+  border-radius: 0.25rem;
+  background-color: #f4f4f5;
+  padding: 0.125rem 0.375rem;
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  color: #52525b;
+}
+
+:global(.dark) .statusBadge {
+  background-color: #27272a;
+  color: #d4d4d8;
+}
+
+.amount {
+  flex-shrink: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.amountCredit {
+  color: #059669;
+}
+
+:global(.dark) .amountCredit {
+  color: #34d399;
+}
+
+.amountDebit {
+  color: #e11d48;
+}
+
+:global(.dark) .amountDebit {
+  color: #fb7185;
+}

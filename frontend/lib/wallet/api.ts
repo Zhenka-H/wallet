@@ -278,14 +278,11 @@ export async function fetchTransactions(
   options?: { limit?: number; cursor?: string }
 ): Promise<{ items: Transaction[]; next_cursor?: string }> {
   const params = new URLSearchParams();
+  params.set("accountId", accountId);
   if (options?.limit != null) params.set("limit", String(options.limit));
   if (options?.cursor) params.set("cursor", options.cursor);
-  const q = params.toString();
-  const id = encodeURIComponent(accountId);
-  const base = DIRECT
-    ? `/accounts/${id}/transactions`
-    : `/api/wallet/accounts/${id}/transactions`;
-  const path = `${base}${q ? `?${q}` : ""}`;
+  const base = DIRECT ? "/ledger" : "/api/wallet/ledger";
+  const path = `${base}?${params.toString()}`;
   const raw = await walletFetch<unknown>(path);
   const inner = DIRECT ? unwrapResponseData<unknown>(raw) : raw;
 

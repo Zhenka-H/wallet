@@ -11,7 +11,6 @@ import {
   METHOD_NOT_IMPLEMENTED,
   LEDGER_ENTRY_DOES_NOT_EXIST,
   ACCOUNT_DOES_NOT_EXIST,
-  LEDGER_DOES_NOT_EXIST,
 } from '@common/*';
 import { LedgerEntryRepository } from '../repository/ledger-entry.r';
 import { UUID } from 'crypto';
@@ -75,18 +74,6 @@ export class LedgerService extends BaseService<LedgerEntryEntity> {
     } finally {
       await queryRunner.release();
     }
-  }
-
-  async findByAccount(accountId: UUID): Promise<IResItem<LedgerEntryEntity[]>> {
-    const ledger = await this.ledgerEntryRepository.find({
-      where: { accountId },
-      order: { timestamp: 'DESC' },
-    });
-
-    if (!ledger) {
-      throw new BadRequestException(LEDGER_DOES_NOT_EXIST);
-    }
-    return { data: ledger, isSuccess: true };
   }
 
   async getBalance(accountId: UUID): Promise<{ balance: number }> {

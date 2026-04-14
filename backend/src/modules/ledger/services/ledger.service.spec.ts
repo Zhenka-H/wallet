@@ -5,23 +5,24 @@ import {
   LEDGER_ENTRY_REPOSITORY,
   DATABASE_SOURCE,
   IResCreate,
-  IResItem,
 } from '@common/*';
 import { LedgerEntryEntity } from '../entities/ledger-entry.entity';
 import { BadRequestException } from '@nestjs/common';
 import { randomUUID } from 'crypto';
-import { Repository, DataSource, SelectQueryBuilder } from 'typeorm';
+import { DataSource, SelectQueryBuilder } from 'typeorm';
 import { CreateDto } from '../dto/create.dto';
+import { LedgerEntryRepository } from '../repository/ledger-entry.r';
+import { FindAllDto } from '../dto/find-all.dto';
 
 describe('LedgerService', () => {
   let service: LedgerService;
-  let repository: jest.Mocked<Repository<LedgerEntryEntity>>;
 
   const mockRepository = {
     create: jest.fn(),
     save: jest.fn(),
     find: jest.fn(),
-  } as unknown as jest.Mocked<Repository<LedgerEntryEntity>>;
+    findAll: jest.fn(),
+  } as unknown as jest.Mocked<LedgerEntryRepository>;
 
   const mockQueryRunner = {
     connect: jest.fn(),
@@ -65,7 +66,6 @@ describe('LedgerService', () => {
     }).compile();
 
     service = module.get<LedgerService>(LedgerService);
-    repository = module.get(LEDGER_ENTRY_REPOSITORY);
   });
 
   describe('create', () => {
@@ -110,29 +110,46 @@ describe('LedgerService', () => {
     });
   });
 
-  describe('findByAccount', () => {
-    it('should return ledger entries for an account', async () => {
-      const accountId = randomUUID();
-      const mockData = [
-        { id: '1', amount: 100 },
-      ] as unknown as LedgerEntryEntity[];
-      (mockRepository.find as jest.Mock).mockResolvedValue(mockData);
+  describe('findAll', () => {
+    it('should return all ledger entries', async () => {
+      const mockResult = {
+        total: 1,
+        data: [{ id: '1', amount: 100 } as unknown as LedgerEntryEntity],
+      };
+      mockRepository.findAll.mockResolvedValue(mockResult);
 
-      const result: IResItem<LedgerEntryEntity[]> =
-        await service.findByAccount(accountId);
+      const result = await service.findAll({} as unknown as FindAllDto);
 
-      expect(result).toEqual({ data: mockData, isSuccess: true });
-      expect(repository.find).toHaveBeenCalledWith({
-        where: { accountId },
-        order: { timestamp: 'DESC' },
-      });
+      expect(result).toEqual(mockResult);
+      expect(mockRepository.findAll).toHaveBeenCalledWith(
+        {} as unknown as FindAllDto,
+      );
     });
 
-    it('should throw BadRequestException if result is null', async () => {
-      (mockRepository.find as jest.Mock).mockResolvedValue(null);
-      await expect(service.findByAccount(randomUUID())).rejects.toThrow(
-        BadRequestException,
-      );
+    it('should filter by accountId', async () => {
+      const accountId = randomUUID();
+      const mockResult = {
+        total: 1,
+        data: [
+          { id: '1', amount: 100, accountId } as unknown as LedgerEntryEntity,
+        ],
+      };
+      mockRepository.findAll.mockResolvedValue(mockResult);
+
+      const result = await service.findAll({
+        accountId,
+        page: 1,
+        limit: 10,
+        skip: 0,
+      } as unknown as FindAllDto);
+
+      expect(result).toEqual(mockResult);
+      expect(mockRepository.findAll).toHaveBeenCalledWith({
+        accountId,
+        page: 1,
+        limit: 10,
+        skip: 0,
+      } as unknown as FindAllDto);
     });
   });
 

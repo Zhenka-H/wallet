@@ -6,13 +6,15 @@ import {
   Param,
   Delete,
   Query,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import { AccountsService } from './accounts.service';
 import { LedgerService } from '../ledger/services/ledger.service';
 import { CreateDto } from './dto/create.dto';
 import { UUID } from 'crypto';
 import { Response } from '@common/*';
-import { FindAllDto } from './dto/find-all.dto';
+import { FindAllDto as AccountFindAllDto } from './dto/find-all.dto';
+import { FindAllDto as LedgerFindAllDto } from '../ledger/dto/find-all.dto';
 
 @Controller('accounts')
 export class AccountsController {
@@ -22,8 +24,10 @@ export class AccountsController {
   ) {}
 
   @Get()
-  async findAll(@Query() dto: FindAllDto) {
-    const res = await this.accountsService.findAll(dto);
+  async findAll(@Query() dto: AccountFindAllDto) {
+    const res = await this.accountsService.findAll(
+      dto as unknown as AccountFindAllDto,
+    );
     return Response.returnData(res.data, {
       total: res.total,
       page: dto.page,
@@ -50,8 +54,13 @@ export class AccountsController {
   }
 
   @Get(':id/transactions')
-  async getTransactions(@Param('id') id: UUID) {
-    const res = await this.ledgerService.findByAccount(id);
+  async getTransactions(
+    @Param('id', ParseUUIDPipe) id: UUID,
+    @Query() dto: LedgerFindAllDto,
+  ) {
+    dto.accountId = id;
+    const res = await this.ledgerService.findAll(dto);
+
     return Response.returnData(res.data);
   }
 

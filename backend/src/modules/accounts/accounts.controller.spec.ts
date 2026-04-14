@@ -4,6 +4,7 @@ import { AccountsController } from './accounts.controller';
 import { AccountsService } from './accounts.service';
 import { LedgerService } from '../ledger/services/ledger.service';
 import { randomUUID } from 'crypto';
+import { FindAllDto as LedgerFindAllDto } from '../ledger/dto/find-all.dto';
 import { CreateDto } from './dto/create.dto';
 import { AccountEntity } from './entities/account.entity';
 import { IResCreate } from '@common/*';
@@ -21,7 +22,7 @@ describe('AccountsController', () => {
 
   const mockLedgerService: jest.Mocked<Partial<LedgerService>> = {
     getBalance: jest.fn(),
-    findByAccount: jest.fn(),
+    findAll: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -81,6 +82,22 @@ describe('AccountsController', () => {
 
       expect(result).toBeUndefined();
       expect(accountsService.delete).toHaveBeenCalledWith(id);
+    });
+  });
+
+  describe('getTransactions', () => {
+    it('should call ledgerService.findAll with accountId', async () => {
+      const id = randomUUID();
+      const dto = new LedgerFindAllDto();
+      const mockResult = { total: 1, data: [{ id: randomUUID() }] };
+      (mockLedgerService.findAll as jest.Mock).mockResolvedValue(mockResult);
+
+      const result = await controller.getTransactions(id, dto);
+
+      expect(result.data).toEqual(mockResult.data);
+      expect(ledgerService.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({ accountId: id }),
+      );
     });
   });
 });

@@ -4,8 +4,9 @@ import { LedgerController } from './ledger.controller';
 import { LedgerService } from '../services/ledger.service';
 import { randomUUID } from 'crypto';
 import { CreateDto } from '../dto/create.dto';
-import { IResCreate, IResItem } from '@common/*';
+import { IResCreate } from '@common/*';
 import { LedgerEntryEntity } from '../entities/ledger-entry.entity';
+import { FindAllDto as LedgerFindAllDto } from '../dto/find-all.dto';
 
 describe('LedgerController', () => {
   let controller: LedgerController;
@@ -13,7 +14,7 @@ describe('LedgerController', () => {
 
   const mockLedgerService: jest.Mocked<Partial<LedgerService>> = {
     create: jest.fn(),
-    findByAccount: jest.fn(),
+    findAll: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -49,19 +50,24 @@ describe('LedgerController', () => {
     });
   });
 
-  describe('findByAccount', () => {
-    it('should call ledgerService.findByAccount', async () => {
-      const accountId = randomUUID();
-      const mockData = [{ id: randomUUID() }] as LedgerEntryEntity[];
-      (mockLedgerService.findByAccount as jest.Mock).mockResolvedValue({
-        data: mockData,
-        isSuccess: true,
-      } as IResItem<LedgerEntryEntity[]>);
+  describe('findAll', () => {
+    it('should call ledgerService.findAll', async () => {
+      const mockResult = {
+        total: 1,
+        data: [{ id: randomUUID() } as LedgerEntryEntity],
+      };
+      (mockLedgerService.findAll as jest.Mock).mockResolvedValue(mockResult);
 
-      const result = await controller.findByAccount(accountId);
+      const result = await controller.findAll({
+        page: 1,
+        limit: 10,
+      } as unknown as LedgerFindAllDto);
 
-      expect(result.data).toEqual(mockData);
-      expect(service.findByAccount).toHaveBeenCalledWith(accountId);
+      expect(result.data).toEqual(mockResult.data);
+      expect(service.findAll).toHaveBeenCalledWith({
+        page: 1,
+        limit: 10,
+      } as unknown as LedgerFindAllDto);
     });
   });
 });

@@ -16,15 +16,19 @@ export class LedgerEntryRepository extends Repository<LedgerEntryEntity> {
     dto: FindAllDto,
   ): Promise<{ total: number; data: LedgerEntryEntity[] }> {
     const order: { [key in LedgersOrderEnum]: string } = {
-      [LedgersOrderEnum.Id]: `ledger_entries.${LedgersOrderEnum.Id}`,
-      [LedgersOrderEnum.Amount]: `ledger_entries.${LedgersOrderEnum.Amount}`,
-      [LedgersOrderEnum.AccountId]: `ledger_entries.${LedgersOrderEnum.AccountId}`,
-      [LedgersOrderEnum.TransactionId]: `ledger_entries.${LedgersOrderEnum.TransactionId}`,
-      [LedgersOrderEnum.CreatedAt]: `ledger_entries.${LedgersOrderEnum.CreatedAt}`,
+      [LedgersOrderEnum.Id]: 'ledger_entries.id',
+      [LedgersOrderEnum.Amount]: 'ledger_entries.amount',
+      [LedgersOrderEnum.AccountId]: 'ledger_entries.accountId',
+      [LedgersOrderEnum.TransactionId]: 'ledger_entries.transactionId',
+      [LedgersOrderEnum.CreatedAt]: 'ledger_entries.timestamp',
     };
 
-    const { q, limit } = dto;
+    const { q, limit, accountId } = dto;
     const qb = this.createQueryBuilder('ledger_entries');
+
+    if (accountId) {
+      qb.andWhere(`ledger_entries.accountId = :accountId`, { accountId });
+    }
 
     if (q) {
       if (isUUID(q)) {

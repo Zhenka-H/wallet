@@ -30,10 +30,4 @@ export class LedgerController {
     const res = await this.ledgerService.findOne(id);
     return Response.returnData(res.data);
   }
-
-  @Get('account/:accountId')
-  async findByAccount(@Param('accountId') accountId: UUID) {
-    const res = await this.ledgerService.findByAccount(accountId);
-    return Response.returnData(res.data);
-  }
 }

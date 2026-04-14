@@ -9,7 +9,7 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { randomUUID } from 'crypto';
-import { TransferDto } from '../ledger/dto/transfer.dto';
+import { TransferDto } from '../dto/transfer.dto';
 
 describe('TransferService', () => {
   let service: TransferService;

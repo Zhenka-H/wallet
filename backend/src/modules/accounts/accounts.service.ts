@@ -9,17 +9,21 @@ import {
   IResItem,
   IResUpdate,
   DATABASE_SOURCE,
+  METHOD_NOT_IMPLEMENTED,
+  ACCOUNT_DOES_NOT_EXIST,
+  ACCOUNT_CONTAINS_LEDGER_ENTRIES,
 } from '@common/*';
 import { AccountRepository } from './repository/accounts.r';
 import { DataSource, DeleteResult } from 'typeorm';
 import { LedgerEntryEntity } from '../ledger/entities/ledger-entry.entity';
 import { FindAllDto } from './dto/find-all.dto';
-import { LedgerService } from '../services/ledger.service';
+import { LedgerService } from '../ledger/services/ledger.service';
+import { MoneyMapper } from '../ledger/helpers/money-mapper.h';
 
 @Injectable()
 export class AccountsService extends BaseService<AccountEntity> {
   update(): Promise<IResUpdate<AccountEntity>> {
-    throw new Error('Method not implemented.');
+    throw new Error(METHOD_NOT_IMPLEMENTED);
   }
   constructor(
     @Inject(ACCOUNT_REPOSITORY)
@@ -44,7 +48,7 @@ export class AccountsService extends BaseService<AccountEntity> {
 
     await this.ledgerService.create({
       accountId: savedAccount.id,
-      amount: 100,
+      amount: MoneyMapper.toDatabase(100),
       transactionId: savedAccount.id,
     });
 
@@ -54,7 +58,7 @@ export class AccountsService extends BaseService<AccountEntity> {
   async findOne(id: UUID): Promise<IResItem<AccountEntity>> {
     const account = await this.accountRepository.findOneBy({ id });
     if (!account) {
-      throw new BadRequestException('Account does not exist');
+      throw new BadRequestException(ACCOUNT_DOES_NOT_EXIST);
     }
     return { data: account, isSuccess: true };
   }
@@ -65,9 +69,7 @@ export class AccountsService extends BaseService<AccountEntity> {
     });
 
     if (hasLedger > 0) {
-      throw new BadRequestException(
-        'Account contains ledger entries and cannot be deleted',
-      );
+      throw new BadRequestException(ACCOUNT_CONTAINS_LEDGER_ENTRIES);
     }
 
     return this.accountRepository.delete(id);

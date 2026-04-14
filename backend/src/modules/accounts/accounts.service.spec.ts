@@ -12,6 +12,7 @@ import { BadRequestException } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { Repository, DataSource } from 'typeorm';
 import { CreateDto } from './dto/create.dto';
+import { LedgerService } from '../ledger/services/ledger.service';
 
 describe('AccountsService', () => {
   let service: AccountsService;
@@ -41,6 +42,12 @@ describe('AccountsService', () => {
         {
           provide: DATABASE_SOURCE,
           useValue: mockDataSource,
+        },
+        {
+          provide: LedgerService,
+          useValue: {
+            create: jest.fn(),
+          },
         },
       ],
     }).compile();

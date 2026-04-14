@@ -1,16 +1,19 @@
-import { IsUUID, IsNotEmpty, IsNumber, IsPositive } from 'class-validator';
+import { IsUUID, IsNotEmpty, IsPositive, IsInt } from 'class-validator';
+import { Transform } from 'class-transformer';
+import { MoneyMapper } from '../helpers/money-mapper.h';
 
 export class CreateDto {
   @IsUUID()
   @IsNotEmpty()
-  transactionId: string;
+  readonly transactionId: string;
 
   @IsUUID()
   @IsNotEmpty()
-  accountId: string;
+  readonly accountId: string;
 
-  @IsNumber()
+  @IsInt()
   @IsPositive()
   @IsNotEmpty()
-  amount: number;
+  @Transform(({ value }) => MoneyMapper.toDatabase(value as number))
+  readonly amount: number;
 }

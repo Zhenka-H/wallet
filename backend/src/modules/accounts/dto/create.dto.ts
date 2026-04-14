@@ -4,5 +4,5 @@ export class CreateDto {
   @IsString()
   @IsNotEmpty()
   @MaxLength(128)
-  name: string;
+  readonly name: string;
 }

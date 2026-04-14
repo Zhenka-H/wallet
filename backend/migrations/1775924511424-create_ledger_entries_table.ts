@@ -9,7 +9,7 @@ export class CreateLedgerEntriesTable1775924511424
        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
        transaction_id UUID NOT NULL,
        account_id UUID NOT NULL REFERENCES "main"."accounts"(id) ON DELETE RESTRICT ON UPDATE NO ACTION,
-       amount NUMERIC(19,4) NOT NULL,
+       amount INT NOT NULL,
        timestamp TIMESTAMP NOT NULL DEFAULT now()
       );
     `);

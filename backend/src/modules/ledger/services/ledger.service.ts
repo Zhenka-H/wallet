@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException, Inject } from '@nestjs/common';
-import { LedgerEntryEntity } from '../ledger/entities/ledger-entry.entity';
-import { CreateDto } from '../ledger/dto/create.dto';
+import { LedgerEntryEntity } from '../entities/ledger-entry.entity';
+import { CreateDto } from '../dto/create.dto';
 import {
   BaseService,
   IResCreate,
@@ -8,18 +8,23 @@ import {
   IResUpdate,
   LEDGER_ENTRY_REPOSITORY,
   DATABASE_SOURCE,
+  METHOD_NOT_IMPLEMENTED,
+  LEDGER_ENTRY_DOES_NOT_EXIST,
+  ACCOUNT_DOES_NOT_EXIST,
+  LEDGER_DOES_NOT_EXIST,
 } from '@common/*';
-import { LedgerEntryRepository } from '../ledger/repository/ledger-entry.r';
+import { LedgerEntryRepository } from '../repository/ledger-entry.r';
 import { UUID } from 'crypto';
 import { DataSource } from 'typeorm';
 import { Decimal } from 'decimal.js';
-import { AccountEntity } from '../accounts/entities/account.entity';
-import { FindAllDto } from '../ledger/dto/find-all.dto';
+import { AccountEntity } from '../../accounts/entities/account.entity';
+import { FindAllDto } from '../dto/find-all.dto';
+import { MoneyMapper } from '../helpers/money-mapper.h';
 
 @Injectable()
 export class LedgerService extends BaseService<LedgerEntryEntity> {
   update(): Promise<IResUpdate<LedgerEntryEntity>> {
-    throw new Error('Method not implemented.');
+    throw new Error(METHOD_NOT_IMPLEMENTED);
   }
   constructor(
     @Inject(LEDGER_ENTRY_REPOSITORY)
@@ -40,7 +45,7 @@ export class LedgerService extends BaseService<LedgerEntryEntity> {
   async findOne(id: UUID): Promise<IResItem<LedgerEntryEntity>> {
     const ledgerEntry = await this.ledgerEntryRepository.findOneBy({ id });
     if (!ledgerEntry) {
-      throw new BadRequestException('Ledger Entry does not exist');
+      throw new BadRequestException(LEDGER_ENTRY_DOES_NOT_EXIST);
     }
     return { data: ledgerEntry, isSuccess: true };
   }
@@ -56,7 +61,7 @@ export class LedgerService extends BaseService<LedgerEntryEntity> {
         lock: { mode: 'pessimistic_write' },
       });
       if (!account) {
-        throw new BadRequestException('Account does not exist');
+        throw new BadRequestException(ACCOUNT_DOES_NOT_EXIST);
       }
 
       const entry = queryRunner.manager.create(LedgerEntryEntity, dto);
@@ -79,7 +84,7 @@ export class LedgerService extends BaseService<LedgerEntryEntity> {
     });
 
     if (!ledger) {
-      throw new BadRequestException('Ledger does not exist');
+      throw new BadRequestException(LEDGER_DOES_NOT_EXIST);
     }
     return { data: ledger, isSuccess: true };
   }
@@ -91,6 +96,10 @@ export class LedgerService extends BaseService<LedgerEntryEntity> {
       .where('entry.accountId = :id', { id: accountId })
       .getRawOne<{ balance: string | null }>();
 
-    return { balance: new Decimal(res?.balance ?? 0).toNumber() };
+    return {
+      balance: MoneyMapper.toFrontend(
+        new Decimal(res?.balance ?? 0).toNumber(),
+      ),
+    };
   }
 }

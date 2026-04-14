@@ -6,10 +6,9 @@ import {
   Param,
   Delete,
   Query,
-  HttpCode,
 } from '@nestjs/common';
 import { AccountsService } from './accounts.service';
-import { LedgerService } from '../services/ledger.service';
+import { LedgerService } from '../ledger/services/ledger.service';
 import { CreateDto } from './dto/create.dto';
 import { UUID } from 'crypto';
 import { Response } from '@common/*';
@@ -57,7 +56,6 @@ export class AccountsController {
   }
 
   @Delete(':id')
-  @HttpCode(204)
   async delete(@Param('id') id: UUID) {
     await this.accountsService.delete(id);
   }

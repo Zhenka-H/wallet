@@ -6,11 +6,18 @@ import {
   Inject,
 } from '@nestjs/common';
 import { DataSource, QueryRunner, InsertResult } from 'typeorm';
-import { TransferDto } from '../ledger/dto/transfer.dto';
-import { LedgerEntryEntity } from '../ledger/entities/ledger-entry.entity';
-import { AccountEntity } from '../accounts/entities/account.entity';
+import { TransferDto } from '../dto/transfer.dto';
+import { LedgerEntryEntity } from '../entities/ledger-entry.entity';
+import { AccountEntity } from '../../accounts/entities/account.entity';
 import { UUID } from 'crypto';
-import { DATABASE_SOURCE } from '@common/*';
+import {
+  DATABASE_SOURCE,
+  CANNOT_TRANSFER_TO_SAME_ACCOUNT,
+  TRANSFER_AMOUNT_MUST_BE_POSITIVE,
+  TRANSACTION_ID_ALREADY_EXISTS,
+  ACCOUNT_ID_NOT_FOUND,
+  INSUFFICIENT_FUNDS,
+} from '@common/*';
 import { Decimal } from 'decimal.js';
 
 export interface ITransferResult {
@@ -29,10 +36,10 @@ export class TransferService {
     const { transactionId, fromAcId, toAcId, amount } = dto;
 
     if (fromAcId === toAcId) {
-      throw new BadRequestException('Cannot transfer to the same account');
+      throw new BadRequestException(CANNOT_TRANSFER_TO_SAME_ACCOUNT);
     }
     if (amount <= 0) {
-      throw new BadRequestException('Transfer amount must be positive');
+      throw new BadRequestException(TRANSFER_AMOUNT_MUST_BE_POSITIVE);
     }
 
     const queryRunner: QueryRunner = this.dataSource.createQueryRunner();
@@ -92,9 +99,7 @@ export class TransferService {
     );
 
     if (!debit || !credit) {
-      throw new ConflictException(
-        'Transaction ID already exists with different payload parameters',
-      );
+      throw new ConflictException(TRANSACTION_ID_ALREADY_EXISTS);
     }
     return true;
   }
@@ -113,7 +118,7 @@ export class TransferService {
       });
 
       if (!account) {
-        throw new BadRequestException(`Account ${id} not found`);
+        throw new BadRequestException(ACCOUNT_ID_NOT_FOUND);
       }
       lockedAccounts.push(account);
     }
@@ -133,7 +138,7 @@ export class TransferService {
 
     const currentBalance = new Decimal(res?.balance ?? 0);
     if (currentBalance.lessThan(amount)) {
-      throw new UnprocessableEntityException('Insufficient funds');
+      throw new UnprocessableEntityException(INSUFFICIENT_FUNDS);
     }
     return currentBalance.toNumber();
   }

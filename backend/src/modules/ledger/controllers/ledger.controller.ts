@@ -1,5 +1,5 @@
 import { Controller, Post, Body, Get, Param, Query } from '@nestjs/common';
-import { LedgerService } from '../../services/ledger.service';
+import { LedgerService } from '../services/ledger.service';
 import { CreateDto } from '../dto/create.dto';
 import { UUID } from 'crypto';
 import { Response } from '@common/*';

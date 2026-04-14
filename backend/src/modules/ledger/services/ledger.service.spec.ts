@@ -7,11 +7,11 @@ import {
   IResCreate,
   IResItem,
 } from '@common/*';
-import { LedgerEntryEntity } from '../ledger/entities/ledger-entry.entity';
+import { LedgerEntryEntity } from '../entities/ledger-entry.entity';
 import { BadRequestException } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { Repository, DataSource, SelectQueryBuilder } from 'typeorm';
-import { CreateDto } from '../ledger/dto/create.dto';
+import { CreateDto } from '../dto/create.dto';
 
 describe('LedgerService', () => {
   let service: LedgerService;
@@ -140,7 +140,7 @@ describe('LedgerService', () => {
     it('should return the balance for an account', async () => {
       const accountId = randomUUID();
       (mockQueryBuilder.getRawOne as jest.Mock).mockResolvedValue({
-        balance: '150.50',
+        balance: '15050',
       });
 
       const result: { balance: number } = await service.getBalance(accountId);
@@ -161,7 +161,7 @@ describe('LedgerService', () => {
 
     it('should return the correct balance with high precision decimals', async () => {
       (mockQueryBuilder.getRawOne as jest.Mock).mockResolvedValue({
-        balance: '123.456789',
+        balance: '12345.6789',
       });
       const result = await service.getBalance(randomUUID());
       expect(result.balance).toBe(123.456789);

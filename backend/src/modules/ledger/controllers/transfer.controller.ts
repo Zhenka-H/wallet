@@ -1,9 +1,6 @@
 import { Controller, Post, Body } from '@nestjs/common';
 import { TransferDto } from '../dto/transfer.dto';
-import {
-  ITransferResult,
-  TransferService,
-} from '../../services/transfer.service';
+import { ITransferResult, TransferService } from '../services/transfer.service';
 
 @Controller('transfers')
 export class TransferController {

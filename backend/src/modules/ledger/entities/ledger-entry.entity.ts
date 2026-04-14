@@ -10,6 +10,8 @@ import {
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { AccountEntity } from '../../accounts/entities/account.entity';
+import { Transform } from 'class-transformer';
+import { MoneyMapper } from '../helpers/money-mapper.h';
 
 @Entity({ name: 'ledger_entries', schema: 'main' })
 @Index(['transactionId', 'accountId'], { unique: true })
@@ -33,10 +35,9 @@ export class LedgerEntryEntity extends BaseEntity {
   @Index()
   accountId: string;
 
+  @Transform(({ value }) => MoneyMapper.toFrontend(value as number))
   @Column({
-    type: 'numeric',
-    precision: 19,
-    scale: 4,
+    type: 'int',
   })
   amount: number;
 

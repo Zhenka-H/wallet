@@ -1,10 +1,7 @@
 /* eslint-disable @typescript-eslint/unbound-method */
 import { Test, TestingModule } from '@nestjs/testing';
 import { TransferController } from './transfer.controller';
-import {
-  TransferService,
-  ITransferResult,
-} from '../../services/transfer.service';
+import { TransferService, ITransferResult } from '../services/transfer.service';
 import { randomUUID } from 'crypto';
 import { TransferDto } from '../dto/transfer.dto';
 

@@ -2,7 +2,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AccountsController } from './accounts.controller';
 import { AccountsService } from './accounts.service';
-import { LedgerService } from '../services/ledger.service';
+import { LedgerService } from '../ledger/services/ledger.service';
 import { randomUUID } from 'crypto';
 import { CreateDto } from './dto/create.dto';
 import { AccountEntity } from './entities/account.entity';

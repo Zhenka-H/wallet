@@ -1,5 +1,7 @@
-import { IsUUID, IsNumber, IsPositive, IsNotEmpty } from 'class-validator';
+import { IsUUID, IsPositive, IsNotEmpty, IsInt } from 'class-validator';
 import { UUID } from 'crypto';
+import { Transform } from 'class-transformer';
+import { MoneyMapper } from '../helpers/money-mapper.h';
 
 export class TransferDto {
   @IsUUID()
@@ -14,8 +16,9 @@ export class TransferDto {
   @IsNotEmpty()
   toAcId: UUID;
 
-  @IsNumber()
+  @IsInt()
   @IsPositive()
   @IsNotEmpty()
+  @Transform(({ value }) => MoneyMapper.toDatabase(value as number))
   amount: number;
 }

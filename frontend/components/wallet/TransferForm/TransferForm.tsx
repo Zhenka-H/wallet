@@ -28,10 +28,13 @@ export function TransferForm({
 }: TransferFormProps) {
   const [toAccountId, setToAccountId] = useState("");
   const [amount, setAmount] = useState("");
+  const [prevFromAccountId, setPrevFromAccountId] = useState(fromAccountId);
+  if (fromAccountId !== prevFromAccountId) {
+    setPrevFromAccountId(fromAccountId);
+    setToAccountId("");
+    setAmount("");
+  }
 
-useEffect(()=>{
-  setToAccountId("")
-},[fromAccountId])
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let inputValue = e.target.value;
     inputValue = inputValue.replace(",", ".");

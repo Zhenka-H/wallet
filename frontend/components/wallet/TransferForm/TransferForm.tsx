@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import type { Account } from "@/lib/wallet/api";
 import { walletErrorMessage } from "@/lib/wallet/errors";
 import styles from "./TransferForm.module.css";

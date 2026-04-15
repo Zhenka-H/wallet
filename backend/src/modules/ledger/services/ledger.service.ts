@@ -16,6 +16,7 @@ import {
   METHOD_NOT_IMPLEMENTED,
   LEDGER_ENTRY_DOES_NOT_EXIST,
   ACCOUNT_DOES_NOT_EXIST,
+  INSUFFICIENT_FUNDS,
 } from '@common/*';
 import { LedgerEntryRepository } from '../repository/ledger-entry.r';
 import { UUID } from 'crypto';
@@ -94,17 +95,21 @@ export class LedgerService extends BaseService<LedgerEntryEntity> {
     manager: EntityManager,
     accountId: string,
     amount: number,
-  ): Promise<void> {
+  ): Promise<boolean> {
     const res = await manager
       .createQueryBuilder(LedgerEntryEntity, 'entry')
       .select('SUM(entry.amount)', 'balance')
       .where('entry.accountId = :id', { id: accountId })
       .getRawOne<{ balance: string | null }>();
 
-    const currentBalance = new Decimal(res?.balance ?? 0);
-    if (currentBalance.lessThan(amount)) {
-      throw new UnprocessableEntityException('INSUFFICIENT_FUNDS');
+    const currentBalanceInCents = new Decimal(res?.balance ?? 0);
+    const requestedAmountInCents = MoneyMapper.toDatabase(amount);
+
+    if (currentBalanceInCents.lessThan(requestedAmountInCents)) {
+      throw new UnprocessableEntityException(INSUFFICIENT_FUNDS);
     }
+
+    return true;
   }
 
   async getBalance(accountId: UUID): Promise<{ balance: number }> {

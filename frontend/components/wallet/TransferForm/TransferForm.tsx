@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import type { Account } from "@/lib/wallet/api";
 import { walletErrorMessage } from "@/lib/wallet/errors";
 import styles from "./TransferForm.module.css";
@@ -29,6 +29,9 @@ export function TransferForm({
   const [toAccountId, setToAccountId] = useState("");
   const [amount, setAmount] = useState("");
 
+useEffect(()=>{
+  setToAccountId("")
+},[fromAccountId])
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let inputValue = e.target.value;
     inputValue = inputValue.replace(",", ".");

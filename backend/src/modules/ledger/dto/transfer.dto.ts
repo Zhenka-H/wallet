@@ -1,7 +1,5 @@
-import { IsUUID, IsPositive, IsNotEmpty, IsInt } from 'class-validator';
+import { IsUUID, IsPositive, IsNotEmpty, IsNumber } from 'class-validator';
 import { UUID } from 'crypto';
-import { Transform } from 'class-transformer';
-import { MoneyMapper } from '../helpers/money-mapper.h';
 
 export class TransferDto {
   @IsUUID()
@@ -16,9 +14,11 @@ export class TransferDto {
   @IsNotEmpty()
   toAcId: UUID;
 
-  @IsInt()
+  @IsNumber(
+    { maxDecimalPlaces: 2 },
+    { message: 'Amount cannot have more than 2 decimal places' },
+  )
   @IsPositive()
   @IsNotEmpty()
-  @Transform(({ value }) => MoneyMapper.toDatabase(value as number))
   amount: number;
 }

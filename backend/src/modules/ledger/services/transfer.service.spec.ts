@@ -1,8 +1,18 @@
-/* eslint-disable @typescript-eslint/unbound-method */
 import { Test, TestingModule } from '@nestjs/testing';
 import { TransferService } from './transfer.service';
-import { DataSource, QueryRunner, SelectQueryBuilder } from 'typeorm';
-import { DATABASE_SOURCE } from '@common/*';
+import {
+  DataSource,
+  EntityManager,
+  QueryRunner,
+  SelectQueryBuilder,
+} from 'typeorm';
+import {
+  DATABASE_SOURCE,
+  CANNOT_TRANSFER_TO_SAME_ACCOUNT,
+  TRANSFER_AMOUNT_MUST_BE_POSITIVE,
+  TRANSACTION_ID_ALREADY_EXISTS,
+  ACCOUNT_ID_NOT_FOUND,
+} from '@common/*';
 import {
   BadRequestException,
   UnprocessableEntityException,
@@ -10,6 +20,7 @@ import {
 } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { TransferDto } from '../dto/transfer.dto';
+import { LedgerService } from './ledger.service';
 
 describe('TransferService', () => {
   let service: TransferService;
@@ -36,8 +47,16 @@ describe('TransferService', () => {
     },
   } as unknown as jest.Mocked<QueryRunner>;
 
+  const mockLedgerService = {
+    verifySufficientFunds: jest.fn(),
+    createEntry: jest.fn(),
+  };
+
   const mockDataSource = {
     createQueryRunner: jest.fn(() => mockQueryRunner),
+    transaction: jest.fn((cb: (manager: EntityManager) => Promise<unknown>) =>
+      cb(mockQueryRunner.manager as unknown as EntityManager),
+    ),
   } as unknown as jest.Mocked<DataSource>;
 
   beforeEach(async () => {
@@ -47,6 +66,10 @@ describe('TransferService', () => {
         {
           provide: DATABASE_SOURCE,
           useValue: mockDataSource,
+        },
+        {
+          provide: LedgerService,
+          useValue: mockLedgerService,
         },
       ],
     }).compile();
@@ -77,7 +100,7 @@ describe('TransferService', () => {
       };
 
       await expect(service.transfer(selfTransferDto)).rejects.toThrow(
-        new BadRequestException('Cannot transfer to the same account'),
+        new BadRequestException(CANNOT_TRANSFER_TO_SAME_ACCOUNT),
       );
     });
 
@@ -88,7 +111,7 @@ describe('TransferService', () => {
       };
 
       await expect(service.transfer(zeroAmountDto)).rejects.toThrow(
-        new BadRequestException('Transfer amount must be positive'),
+        new BadRequestException(TRANSFER_AMOUNT_MUST_BE_POSITIVE),
       );
     });
 
@@ -101,8 +124,6 @@ describe('TransferService', () => {
       const result = await service.transfer(transferDto);
 
       expect(result).toEqual({ isSuccess: true, transactionId });
-      expect(queryRunner.rollbackTransaction).toHaveBeenCalled();
-      expect(queryRunner.release).toHaveBeenCalled();
     });
 
     it('should throw ConflictException if transaction is a duplicate but details differ (amount)', async () => {
@@ -112,9 +133,8 @@ describe('TransferService', () => {
       ]);
 
       await expect(service.transfer(transferDto)).rejects.toThrow(
-        ConflictException,
+        new ConflictException(TRANSACTION_ID_ALREADY_EXISTS),
       );
-      expect(queryRunner.rollbackTransaction).toHaveBeenCalled();
     });
 
     it('should throw ConflictException if transaction is a duplicate but details differ (account)', async () => {
@@ -124,54 +144,49 @@ describe('TransferService', () => {
       ]);
 
       await expect(service.transfer(transferDto)).rejects.toThrow(
-        ConflictException,
+        new ConflictException(TRANSACTION_ID_ALREADY_EXISTS),
       );
-      expect(queryRunner.rollbackTransaction).toHaveBeenCalled();
     });
 
     it('should throw BadRequestException if account is not found', async () => {
-      (queryRunner.manager.find as jest.Mock).mockResolvedValue([]);
-      (queryRunner.manager.findOne as jest.Mock).mockResolvedValue(null);
+      (queryRunner.manager.find as jest.Mock).mockResolvedValueOnce([]); // Duplicate check passes (no dupe)
+      (queryRunner.manager.find as jest.Mock).mockResolvedValueOnce([]); // Lock check fails (missing accounts)
 
       await expect(service.transfer(transferDto)).rejects.toThrow(
-        BadRequestException,
+        new BadRequestException(ACCOUNT_ID_NOT_FOUND),
       );
-      expect(queryRunner.rollbackTransaction).toHaveBeenCalled();
     });
 
     it('should throw UnprocessableEntityException if funds are insufficient', async () => {
-      (queryRunner.manager.find as jest.Mock).mockResolvedValue([]);
-      // Mock account lock success
-      (queryRunner.manager.findOne as jest.Mock).mockResolvedValue({
-        id: fromAcId,
-      });
+      (queryRunner.manager.find as jest.Mock).mockResolvedValueOnce([]); // Duplicate check passes
+      (queryRunner.manager.find as jest.Mock).mockResolvedValueOnce([
+        { id: fromAcId },
+        { id: toAcId },
+      ]); // Accounts exist
 
-      (mockQueryBuilder.getRawOne as jest.Mock).mockResolvedValue({
-        balance: '50',
-      });
+      mockLedgerService.verifySufficientFunds.mockRejectedValueOnce(
+        new UnprocessableEntityException('INSUFFICIENT_FUNDS'),
+      );
 
       await expect(service.transfer(transferDto)).rejects.toThrow(
-        UnprocessableEntityException,
+        new UnprocessableEntityException('INSUFFICIENT_FUNDS'),
       );
-      expect(queryRunner.rollbackTransaction).toHaveBeenCalled();
     });
 
     it('should successfully commit transfer when all conditions are met', async () => {
-      (queryRunner.manager.find as jest.Mock).mockResolvedValue([]);
-      (queryRunner.manager.findOne as jest.Mock).mockResolvedValue({
-        id: fromAcId,
-      });
+      (queryRunner.manager.find as jest.Mock).mockResolvedValueOnce([]); // Duplicate check
+      (queryRunner.manager.find as jest.Mock).mockResolvedValueOnce([
+        { id: fromAcId },
+        { id: toAcId },
+      ]); // Accounts exist
 
-      (mockQueryBuilder.getRawOne as jest.Mock).mockResolvedValue({
-        balance: '200',
-      });
+      mockLedgerService.verifySufficientFunds.mockResolvedValueOnce(undefined);
+      mockLedgerService.createEntry.mockResolvedValue({});
 
       const result = await service.transfer(transferDto);
 
       expect(result).toEqual({ isSuccess: true, transactionId });
-      expect(queryRunner.manager.insert).toHaveBeenCalledTimes(1);
-      expect(queryRunner.commitTransaction).toHaveBeenCalled();
-      expect(queryRunner.release).toHaveBeenCalled();
+      expect(mockLedgerService.createEntry).toHaveBeenCalledTimes(2);
     });
   });
 });

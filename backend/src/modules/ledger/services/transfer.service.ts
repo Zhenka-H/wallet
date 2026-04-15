@@ -1,11 +1,10 @@
 import {
   Injectable,
   BadRequestException,
-  UnprocessableEntityException,
   ConflictException,
   Inject,
 } from '@nestjs/common';
-import { DataSource, QueryRunner, InsertResult } from 'typeorm';
+import { DataSource, EntityManager, In } from 'typeorm';
 import { TransferDto } from '../dto/transfer.dto';
 import { LedgerEntryEntity } from '../entities/ledger-entry.entity';
 import { AccountEntity } from '../../accounts/entities/account.entity';
@@ -16,9 +15,8 @@ import {
   TRANSFER_AMOUNT_MUST_BE_POSITIVE,
   TRANSACTION_ID_ALREADY_EXISTS,
   ACCOUNT_ID_NOT_FOUND,
-  INSUFFICIENT_FUNDS,
 } from '@common/*';
-import { Decimal } from 'decimal.js';
+import { LedgerService } from './ledger.service';
 
 export interface ITransferResult {
   isSuccess: boolean;
@@ -30,6 +28,7 @@ export class TransferService {
   constructor(
     @Inject(DATABASE_SOURCE)
     private readonly dataSource: DataSource,
+    private readonly ledgerService: LedgerService,
   ) {}
 
   async transfer(dto: TransferDto): Promise<ITransferResult> {
@@ -42,60 +41,49 @@ export class TransferService {
       throw new BadRequestException(TRANSFER_AMOUNT_MUST_BE_POSITIVE);
     }
 
-    const queryRunner: QueryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    await queryRunner.startTransaction();
-
-    try {
+    return await this.dataSource.transaction(async (manager) => {
       const isDuplicate = await this.isDuplicateTransaction(
-        queryRunner,
+        manager,
         transactionId,
         fromAcId,
         toAcId,
         amount,
       );
       if (isDuplicate) {
-        await queryRunner.rollbackTransaction();
         return { isSuccess: true, transactionId };
       }
 
-      await this.lockAccounts(queryRunner, [fromAcId, toAcId]);
-      await this.verifySufficientFunds(queryRunner, fromAcId, amount);
+      await this.lockAccounts(manager, [fromAcId, toAcId]);
+      await this.ledgerService.verifySufficientFunds(manager, fromAcId, amount);
       await this.executeLedgerEntries(
-        queryRunner,
+        manager,
         transactionId,
         fromAcId,
         toAcId,
         amount,
       );
 
-      await queryRunner.commitTransaction();
       return { isSuccess: true, transactionId };
-    } catch (error) {
-      await queryRunner.rollbackTransaction();
-      throw error;
-    } finally {
-      await queryRunner.release();
-    }
+    });
   }
 
   private async isDuplicateTransaction(
-    queryRunner: QueryRunner,
+    manager: EntityManager,
     transactionId: UUID,
     fromAcId: UUID,
     toAcId: UUID,
     amount: number,
   ): Promise<boolean> {
-    const entries = await queryRunner.manager.find(LedgerEntryEntity, {
+    const entries = await manager.find(LedgerEntryEntity, {
       where: { transactionId },
     });
     if (entries.length === 0) return false;
 
     const debit = entries.find(
-      (e) => e.accountId === fromAcId && new Decimal(e.amount).equals(-amount),
+      (e) => e.accountId === fromAcId && e.amount === -amount,
     );
     const credit = entries.find(
-      (e) => e.accountId === toAcId && new Decimal(e.amount).equals(amount),
+      (e) => e.accountId === toAcId && e.amount === amount,
     );
 
     if (!debit || !credit) {
@@ -105,54 +93,38 @@ export class TransferService {
   }
 
   private async lockAccounts(
-    queryRunner: QueryRunner,
+    manager: EntityManager,
     ids: UUID[],
   ): Promise<AccountEntity[]> {
     const sortedIds = [...ids].sort();
-    const lockedAccounts: AccountEntity[] = [];
+    const accounts = await manager.find(AccountEntity, {
+      where: { id: In(sortedIds) },
+      lock: { mode: 'pessimistic_write' },
+    });
 
-    for (const id of sortedIds) {
-      const account = await queryRunner.manager.findOne(AccountEntity, {
-        where: { id },
-        lock: { mode: 'pessimistic_write' },
-      });
-
-      if (!account) {
-        throw new BadRequestException(ACCOUNT_ID_NOT_FOUND);
-      }
-      lockedAccounts.push(account);
+    if (accounts.length !== ids.length) {
+      throw new BadRequestException(ACCOUNT_ID_NOT_FOUND);
     }
-    return lockedAccounts;
-  }
 
-  private async verifySufficientFunds(
-    queryRunner: QueryRunner,
-    accountId: UUID,
-    amount: number,
-  ): Promise<number> {
-    const res = await queryRunner.manager
-      .createQueryBuilder(LedgerEntryEntity, 'entry')
-      .select('SUM(entry.amount)', 'balance')
-      .where('entry.accountId = :accountId', { accountId })
-      .getRawOne<{ balance: string | null }>();
-
-    const currentBalance = new Decimal(res?.balance ?? 0);
-    if (currentBalance.lessThan(amount)) {
-      throw new UnprocessableEntityException(INSUFFICIENT_FUNDS);
-    }
-    return currentBalance.toNumber();
+    return accounts;
   }
 
   private async executeLedgerEntries(
-    queryRunner: QueryRunner,
-    txId: UUID,
-    from: UUID,
-    to: UUID,
+    manager: EntityManager,
+    txId: string,
+    from: string,
+    to: string,
     amt: number,
-  ): Promise<InsertResult> {
-    return await queryRunner.manager.insert(LedgerEntryEntity, [
-      { transactionId: txId, accountId: from, amount: -amt },
-      { transactionId: txId, accountId: to, amount: amt },
-    ]);
+  ): Promise<void> {
+    await this.ledgerService.createEntry(manager, {
+      transactionId: txId,
+      accountId: from,
+      amount: -amt,
+    });
+    await this.ledgerService.createEntry(manager, {
+      transactionId: txId,
+      accountId: to,
+      amount: amt,
+    });
   }
 }

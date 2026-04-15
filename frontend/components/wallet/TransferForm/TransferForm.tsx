@@ -29,45 +29,77 @@ export function TransferForm({
   const [toAccountId, setToAccountId] = useState("");
   const [amount, setAmount] = useState("");
 
-  const handleSubmit = async (e: FormEvent): Promise<void> => {
+  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let inputValue = e.target.value;
+    inputValue = inputValue.replace(",", ".");
+
+    if (inputValue === "") {
+      setAmount("");
+      return;
+    }
+
+    if (inputValue.startsWith(".")) {
+      inputValue = "0" + inputValue;
+    }
+
+    const isValidAmount = /^\d+(\.\d{0,2})?$/.test(inputValue);
+
+    if (isValidAmount) {
+      setAmount(inputValue);
+
+      if (error) {
+        resetError?.();
+      }
+    }
+  };
+
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault();
-    if (loading || disabled || !fromAccountId) return;
+
+    if (
+      loading ||
+      disabled ||
+      !fromAccountId ||
+      !toAccountId.trim() ||
+      !amount.trim()
+    ) {
+      return;
+    }
 
     resetError?.();
 
     try {
+      const cleanAmount = amount.trim().replace(",", ".");
+
       await onSubmit({
         toAccountId: toAccountId.trim(),
-        amount: amount.trim(),
+        amount: cleanAmount,
       });
-      // Success! Clear inputs
+
       setToAccountId("");
       setAmount("");
-    } catch {
-      // Error handled by parent via props
+    } catch (err) {
+      console.log(err)
     }
   };
 
   const submitBlocked =
-    loading || disabled || !fromAccountId || !toAccountId.trim() || !amount.trim();
+    loading ||
+    disabled ||
+    !fromAccountId ||
+    !toAccountId.trim() ||
+    !amount.trim();
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className={styles.container}
-    >
-      <h2 className={styles.title}>
-        Transfer
-      </h2>
+    <form onSubmit={handleSubmit} className={styles.container}>
+      <h2 className={styles.title}>Transfer</h2>
 
       <div className={styles.grid}>
         <div className={styles.fullWidthField}>
-          <label
-            htmlFor="recipient-id"
-            className={styles.label}
-          >
+          <label htmlFor="recipient-id" className={styles.label}>
             Recipient account ID
           </label>
+
           <select
             id="recipient-id"
             value={toAccountId}
@@ -78,6 +110,7 @@ export function TransferForm({
             <option value="" disabled>
               Select recipient…
             </option>
+
             {accounts
               .filter((acc) => acc.id !== fromAccountId)
               .map((acc) => (
@@ -87,13 +120,12 @@ export function TransferForm({
               ))}
           </select>
         </div>
+
         <div className={styles.field}>
-          <label
-            htmlFor="amount"
-            className={styles.label}
-          >
+          <label htmlFor="amount" className={styles.label}>
             Amount ({currency})
           </label>
+
           <input
             id="amount"
             type="text"
@@ -101,7 +133,7 @@ export function TransferForm({
             autoComplete="off"
             placeholder="0.00"
             value={amount}
-            onChange={(e) => setAmount(e.target.value)}
+            onChange={handleAmountChange}
             disabled={loading || disabled || !fromAccountId}
             className={styles.input}
           />
@@ -109,10 +141,7 @@ export function TransferForm({
       </div>
 
       {error ? (
-        <div
-          className={styles.errorContainer}
-          role="alert"
-        >
+        <div className={styles.errorContainer} role="alert">
           {walletErrorMessage(error)}
         </div>
       ) : null}

@@ -1,7 +1,7 @@
 import { Inject, Injectable, BadRequestException } from '@nestjs/common';
 import { AccountEntity } from './entities/account.entity';
 import { CreateDto } from './dto/create.dto';
-import { UUID } from 'crypto';
+import { randomUUID, UUID } from 'crypto';
 import {
   ACCOUNT_REPOSITORY,
   BaseService,
@@ -17,7 +17,6 @@ import { AccountRepository } from './repository/accounts.r';
 import { DataSource, DeleteResult } from 'typeorm';
 import { LedgerEntryEntity } from '../ledger/entities/ledger-entry.entity';
 import { FindAllDto } from './dto/find-all.dto';
-import { LedgerService } from '../ledger/services/ledger.service';
 import { MoneyMapper } from '../ledger/helpers/money-mapper.h';
 
 @Injectable()
@@ -30,7 +29,6 @@ export class AccountsService extends BaseService<AccountEntity> {
     private readonly accountRepository: AccountRepository,
     @Inject(DATABASE_SOURCE)
     private readonly dataSource: DataSource,
-    private readonly ledgerService: LedgerService,
   ) {
     super();
   }
@@ -43,16 +41,20 @@ export class AccountsService extends BaseService<AccountEntity> {
   }
 
   async create(dto: CreateDto): Promise<IResCreate<AccountEntity>> {
-    const account = this.accountRepository.create(dto);
-    const savedAccount = await this.accountRepository.save(account);
+    return await this.dataSource.transaction(async (manager) => {
+      const account = manager.create(AccountEntity, dto);
+      const savedAccount = await manager.save(account);
 
-    await this.ledgerService.create({
-      accountId: savedAccount.id,
-      amount: MoneyMapper.toDatabase(100),
-      transactionId: savedAccount.id,
+      const initialEntry = manager.create(LedgerEntryEntity, {
+        accountId: savedAccount.id,
+        amount: MoneyMapper.toDatabase(100),
+        transactionId: randomUUID(),
+      });
+
+      await manager.save(initialEntry);
+
+      return { isSuccess: true };
     });
-
-    return { isSuccess: true };
   }
 
   async findOne(id: UUID): Promise<IResItem<AccountEntity>> {

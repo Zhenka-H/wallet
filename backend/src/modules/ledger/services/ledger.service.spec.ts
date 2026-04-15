@@ -5,14 +5,16 @@ import {
   LEDGER_ENTRY_REPOSITORY,
   DATABASE_SOURCE,
   IResCreate,
+  ACCOUNT_DOES_NOT_EXIST,
 } from '@common/*';
 import { LedgerEntryEntity } from '../entities/ledger-entry.entity';
 import { BadRequestException } from '@nestjs/common';
 import { randomUUID } from 'crypto';
-import { DataSource, SelectQueryBuilder } from 'typeorm';
+import { DataSource, EntityManager, SelectQueryBuilder } from 'typeorm';
 import { CreateDto } from '../dto/create.dto';
 import { LedgerEntryRepository } from '../repository/ledger-entry.r';
 import { FindAllDto } from '../dto/find-all.dto';
+import { MoneyMapper } from '../helpers/money-mapper.h';
 
 describe('LedgerService', () => {
   let service: LedgerService;
@@ -48,6 +50,9 @@ describe('LedgerService', () => {
       createQueryBuilder: jest.fn(() => mockQueryBuilder),
     },
     createQueryRunner: jest.fn(() => mockQueryRunner),
+    transaction: jest.fn((cb: (manager: EntityManager) => Promise<unknown>) =>
+      cb(mockQueryRunner.manager as unknown as EntityManager),
+    ),
   } as unknown as jest.Mocked<DataSource>;
 
   beforeEach(async () => {
@@ -68,31 +73,46 @@ describe('LedgerService', () => {
     service = module.get<LedgerService>(LedgerService);
   });
 
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
   describe('create', () => {
-    it('should create and save a ledger entry', async () => {
+    it('should create and save a ledger entry with mapped database amount', async () => {
       const dto: CreateDto = {
-        amount: 100,
+        amount: 100, // Frontend float
         transactionId: randomUUID(),
         accountId: randomUUID(),
       };
+
+      const mappedDbAmount = MoneyMapper.toDatabase(dto.amount); // e.g., 10000
+
       mockQueryRunner.manager.findOne.mockResolvedValue({
         id: dto.accountId,
       });
-      mockQueryRunner.manager.create.mockReturnValue(dto);
+      mockQueryRunner.manager.create.mockReturnValue({
+        ...dto,
+        amount: mappedDbAmount,
+      });
       mockQueryRunner.manager.save.mockResolvedValue({
         id: '1',
         ...dto,
+        amount: mappedDbAmount,
       });
 
       const result: IResCreate<LedgerEntryEntity> = await service.create(dto);
 
       expect(result).toEqual({ isSuccess: true });
+
+      // We explicitly check that the service passed the MAPPED amount to TypeORM
       expect(mockQueryRunner.manager.create).toHaveBeenCalledWith(
         LedgerEntryEntity,
-        dto,
+        {
+          ...dto,
+          amount: mappedDbAmount,
+        },
       );
       expect(mockQueryRunner.manager.save).toHaveBeenCalled();
-      expect(mockQueryRunner.commitTransaction).toHaveBeenCalled();
     });
 
     it('should throw BadRequestException if account is not found during locking', async () => {
@@ -104,9 +124,8 @@ describe('LedgerService', () => {
       mockQueryRunner.manager.findOne.mockResolvedValue(null);
 
       await expect(service.create(dto)).rejects.toThrow(
-        new BadRequestException('Account does not exist'),
+        new BadRequestException(ACCOUNT_DOES_NOT_EXIST), // Using the strict constant
       );
-      expect(mockQueryRunner.rollbackTransaction).toHaveBeenCalled();
     });
   });
 
@@ -178,7 +197,7 @@ describe('LedgerService', () => {
 
     it('should return the correct balance with high precision decimals', async () => {
       (mockQueryBuilder.getRawOne as jest.Mock).mockResolvedValue({
-        balance: '12345.6789',
+        balance: '12345.6789', // Note: Because MoneyMapper.toFrontend divides by 100
       });
       const result = await service.getBalance(randomUUID());
       expect(result.balance).toBe(123.456789);

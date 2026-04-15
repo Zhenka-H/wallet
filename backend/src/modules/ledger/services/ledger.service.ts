@@ -1,4 +1,9 @@
-import { Injectable, BadRequestException, Inject } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  Inject,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import { LedgerEntryEntity } from '../entities/ledger-entry.entity';
 import { CreateDto } from '../dto/create.dto';
 import {
@@ -14,7 +19,7 @@ import {
 } from '@common/*';
 import { LedgerEntryRepository } from '../repository/ledger-entry.r';
 import { UUID } from 'crypto';
-import { DataSource } from 'typeorm';
+import { DataSource, EntityManager } from 'typeorm';
 import { Decimal } from 'decimal.js';
 import { AccountEntity } from '../../accounts/entities/account.entity';
 import { FindAllDto } from '../dto/find-all.dto';
@@ -50,29 +55,55 @@ export class LedgerService extends BaseService<LedgerEntryEntity> {
   }
 
   async create(dto: CreateDto): Promise<IResCreate<LedgerEntryEntity>> {
-    const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    await queryRunner.startTransaction();
-
-    try {
-      const account = await queryRunner.manager.findOne(AccountEntity, {
+    return await this.dataSource.transaction(async (manager) => {
+      const account = await manager.findOne(AccountEntity, {
         where: { id: dto.accountId },
         lock: { mode: 'pessimistic_write' },
       });
+
       if (!account) {
         throw new BadRequestException(ACCOUNT_DOES_NOT_EXIST);
       }
 
-      const entry = queryRunner.manager.create(LedgerEntryEntity, dto);
-      await queryRunner.manager.save(LedgerEntryEntity, entry);
+      if (dto.amount < 0) {
+        await this.verifySufficientFunds(
+          manager,
+          dto.accountId,
+          Math.abs(dto.amount),
+        );
+      }
 
-      await queryRunner.commitTransaction();
+      await this.createEntry(manager, dto);
+
       return { isSuccess: true };
-    } catch (error) {
-      await queryRunner.rollbackTransaction();
-      throw error;
-    } finally {
-      await queryRunner.release();
+    });
+  }
+
+  async createEntry(
+    manager: EntityManager,
+    dto: { transactionId: string; accountId: string; amount: number },
+  ): Promise<LedgerEntryEntity> {
+    const entry = manager.create(LedgerEntryEntity, {
+      ...dto,
+      amount: MoneyMapper.toDatabase(dto.amount),
+    });
+    return await manager.save(LedgerEntryEntity, entry);
+  }
+
+  async verifySufficientFunds(
+    manager: EntityManager,
+    accountId: string,
+    amount: number,
+  ): Promise<void> {
+    const res = await manager
+      .createQueryBuilder(LedgerEntryEntity, 'entry')
+      .select('SUM(entry.amount)', 'balance')
+      .where('entry.accountId = :id', { id: accountId })
+      .getRawOne<{ balance: string | null }>();
+
+    const currentBalance = new Decimal(res?.balance ?? 0);
+    if (currentBalance.lessThan(amount)) {
+      throw new UnprocessableEntityException('INSUFFICIENT_FUNDS');
     }
   }
 

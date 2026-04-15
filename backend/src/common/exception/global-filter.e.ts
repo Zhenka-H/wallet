@@ -14,6 +14,12 @@ interface IError {
   detail?: string;
 }
 
+interface IDatabaseError extends Error {
+  code?: string;
+  detail?: string;
+  driverError?: { code: string };
+}
+
 @Catch()
 export class GlobalExceptionFilter implements ExceptionFilter {
   constructor(private readonly logger: LoggerService) {}
@@ -38,26 +44,26 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     }
 
     if (exception instanceof QueryFailedError || (exception as Record<string, string>)?.name === 'QueryFailedError') {
-      const err = exception as Record<string, string> & { driverError?: { code: string } };
+      const err = exception as IDatabaseError;
       const code = err.code || err.driverError?.code;
 
       switch (code) {
         case '23505':
           status = HttpStatus.CONFLICT;
-          message = { message: 'Duplicate key value violates unique constraint', codeError: code, detail: (err as any).detail };
+          message = { message: 'Duplicate key value violates unique constraint', codeError: code || null, detail: err.detail };
           break;
         case '23503':
           status = HttpStatus.BAD_REQUEST;
-          message = { message: 'Foreign key violation', codeError: code, detail: (err as any).detail };
+          message = { message: 'Foreign key violation', codeError: code || null, detail: err.detail };
           break;
         case '22P02':
         case '23502':
           status = HttpStatus.BAD_REQUEST;
-          message = { message: 'Database constraint violation', codeError: code, detail: (err as any).detail };
+          message = { message: 'Database constraint violation', codeError: code || null, detail: err.detail };
           break;
         default:
           status = HttpStatus.INTERNAL_SERVER_ERROR;
-          message = { message: 'Internal Database Error', codeError: code || 'DB_ERROR', detail: (err as any).detail };
+          message = { message: 'Internal Database Error', codeError: code || 'DB_ERROR', detail: err.detail };
           break;
       }
     }

@@ -25,9 +25,7 @@ export class AccountsController {
 
   @Get()
   async findAll(@Query() dto: AccountFindAllDto) {
-    const res = await this.accountsService.findAll(
-      dto as unknown as AccountFindAllDto,
-    );
+    const res = await this.accountsService.findAll(dto);
     return Response.returnData(res.data, {
       total: res.total,
       page: dto.page,
@@ -42,13 +40,13 @@ export class AccountsController {
   }
 
   @Get(':id')
-  async findOne(@Param('id') id: UUID) {
+  async findOne(@Param('id', ParseUUIDPipe) id: UUID) {
     const res = await this.accountsService.findOne(id);
     return Response.returnData(res.data);
   }
 
   @Get(':id/balance')
-  async getBalance(@Param('id') id: UUID) {
+  async getBalance(@Param('id', ParseUUIDPipe) id: UUID) {
     const res = await this.ledgerService.getBalance(id);
     return Response.returnData(res);
   }
@@ -65,7 +63,7 @@ export class AccountsController {
   }
 
   @Delete(':id')
-  async delete(@Param('id') id: UUID) {
+  async delete(@Param('id', ParseUUIDPipe) id: UUID) {
     await this.accountsService.delete(id);
   }
 }

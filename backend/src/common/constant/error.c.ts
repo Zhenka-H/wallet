@@ -12,3 +12,4 @@ export const LEDGER_DOES_NOT_EXIST = 'Ledger does not exist';
 export const ACCOUNT_CONTAINS_LEDGER_ENTRIES =
   'Account contains ledger entries and cannot be deleted';
 export const ACCOUNT_ID_NOT_FOUND = 'Account not found';
+export const AMOUNT_EXCEEDS_MAX_DECIMALS = 'Amount exceeds mac decimals';

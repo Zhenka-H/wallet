@@ -1,4 +1,12 @@
-import { Controller, Post, Body, Get, Param, Query } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Get,
+  Param,
+  Query,
+  ParseUUIDPipe,
+} from '@nestjs/common';
 import { LedgerService } from '../services/ledger.service';
 import { CreateDto } from '../dto/create.dto';
 import { UUID } from 'crypto';
@@ -26,7 +34,7 @@ export class LedgerController {
   }
 
   @Get(':id')
-  async findOne(@Param('id') id: UUID) {
+  async findOne(@Param('id', ParseUUIDPipe) id: UUID) {
     const res = await this.ledgerService.findOne(id);
     return Response.returnData(res.data);
   }

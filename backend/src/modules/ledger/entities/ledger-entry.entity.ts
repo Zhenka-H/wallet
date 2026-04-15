@@ -22,7 +22,6 @@ export class LedgerEntryEntity extends BaseEntity {
   @Column({
     type: 'uuid',
     name: 'transaction_id',
-    unique: true,
   })
   @Index()
   transactionId: string;

@@ -10,7 +10,7 @@ import {
 import { AccountEntity } from './entities/account.entity';
 import { BadRequestException } from '@nestjs/common';
 import { randomUUID } from 'crypto';
-import { Repository, DataSource } from 'typeorm';
+import { Repository, DataSource, EntityManager } from 'typeorm';
 import { CreateDto } from './dto/create.dto';
 import { LedgerService } from '../ledger/services/ledger.service';
 
@@ -23,12 +23,24 @@ describe('AccountsService', () => {
     save: jest.fn(),
     findOneBy: jest.fn(),
     delete: jest.fn(),
+    findAll: jest.fn(),
   } as unknown as jest.Mocked<Repository<AccountEntity>>;
 
+  const mockEntityManager = {
+    create: jest.fn(),
+    save: jest.fn(),
+    count: jest.fn(),
+  };
+
   const mockDataSource = {
-    manager: {
-      count: jest.fn(),
-    },
+    manager: mockEntityManager,
+    transaction: jest
+      .fn()
+      .mockImplementation(
+        async <T>(cb: (em: EntityManager) => Promise<T>): Promise<T> => {
+          return await cb(mockEntityManager as unknown as EntityManager);
+        },
+      ),
   } as unknown as jest.Mocked<DataSource>;
 
   beforeEach(async () => {
@@ -57,19 +69,29 @@ describe('AccountsService', () => {
   });
 
   describe('create', () => {
-    it('should create and save an account', async () => {
+    afterEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it('should create and save an account inside a transaction', async () => {
       const dto: CreateDto = { name: 'Test Account' };
-      (mockRepository.create as jest.Mock).mockReturnValue(dto);
-      (mockRepository.save as jest.Mock).mockResolvedValue({
-        id: randomUUID(),
+      const accountId = randomUUID();
+
+      mockEntityManager.create.mockImplementation(
+        (entityClass: unknown, data: Partial<AccountEntity>) =>
+          data as AccountEntity,
+      );
+      mockEntityManager.save.mockResolvedValue({
+        id: accountId,
         ...dto,
-      } as AccountEntity);
+      });
 
       const result: IResCreate<AccountEntity> = await service.create(dto);
 
       expect(result).toEqual({ isSuccess: true });
-      expect(repository.create).toHaveBeenCalledWith(dto);
-      expect(repository.save).toHaveBeenCalled();
+      expect(mockDataSource.transaction).toHaveBeenCalled();
+      expect(mockEntityManager.create).toHaveBeenCalledTimes(2);
+      expect(mockEntityManager.save).toHaveBeenCalledTimes(2);
     });
   });
 
@@ -100,7 +122,7 @@ describe('AccountsService', () => {
 
     it('should call repository delete', async () => {
       const id = randomUUID();
-      (mockDataSource.manager.count as jest.Mock).mockResolvedValue(0);
+      mockEntityManager.count.mockResolvedValue(0);
       (mockRepository.delete as jest.Mock).mockResolvedValue({ affected: 1 });
 
       await service.delete(id);
@@ -110,7 +132,7 @@ describe('AccountsService', () => {
 
     it('should throw BadRequestException if account has ledgers', async () => {
       const id = randomUUID();
-      (mockDataSource.manager.count as jest.Mock).mockResolvedValue(1);
+      mockEntityManager.count.mockResolvedValue(1);
 
       await expect(service.delete(id)).rejects.toThrow(BadRequestException);
       expect(repository.delete).not.toHaveBeenCalled();
